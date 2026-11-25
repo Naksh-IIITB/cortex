@@ -20,7 +20,7 @@ Run \`python3 test_workflows.py\` for the workflow test.
 
 ## Scope
 
-Image OCR, automatic graph writes, and exam scheduling are outside this release. Generated study material is returned as text. Add selected flashcards and graph relationships manually.
+macOS Vision handles image OCR and up to 20 scanned PDF pages per import. Review AI-suggested relationships before saving. The exam planner distributes your daily study time over scheduled exams.
 The semantic search reranks up to 120 keyword-ranked candidates. AI output can be incomplete
 and should be checked against the displayed evidence.
 
@@ -33,3 +33,9 @@ Data is stored in \`data/\` (or \`APP_DATA_DIR\` if set). Stop the app before ba
 
 Restore requires the data directory to be absent. To uninstall, stop the app, back up data you
 want to keep, and remove the project folder. The public landing page contains project information.
+
+## OCR and study planning
+
+Image uploads trigger Apple Vision OCR. Select the OCR checkbox to recognize scanned PDF pages.
+OCR uses the macOS Command Line Tools and runs locally. If Vision cannot recognize a file, install Tesseract (for example, with Homebrew) to enable the fallback.
+For graph extraction, select an indexed document and review each relationship before saving.

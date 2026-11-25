@@ -186,10 +186,28 @@ async function startApp(){
   });
   form("new-card",async(data,target)=>{await api("card",data);target.reset();await loadCards();status("Flashcard saved.");});
   form("edge",async(data,target)=>{await api("edge",data);target.reset();await loadGraph();status("Relationship saved.");});
-  await Promise.all([loadDocs(),loadCards(),loadHistory(),loadGraph()]);
+  form("exam-form",async(data,target)=>{await api("exam",data);target.reset();await loadExams();status("Exam saved.");});
+  form("schedule-form",async(data)=>{
+    const plan=await api("schedule",data), target=$("schedule-list");
+    target.replaceChildren();
+    for(const day of [...new Set(plan.map(x=>x.date))]) textBlock(target,day,plan.filter(x=>x.date===day).map(x=>x.subject+" · "+x.minutes+" min · "+x.activity).join("\n"));
+    if(!plan.length) empty(target,"Add an exam within the next 120 days.");
+  });
+  form("suggest-edges",async(data)=>{
+    status("Extracting relationships with Ollama…");
+    const found=await api("suggest-edges",{...data,model:$("model").value}), target=$("edge-suggestions");
+    target.replaceChildren();
+    for(const item of found){
+      const row=node("p",null,node("span",item.source+" → "+item.relation+" → "+item.target+" "),
+        button("Save relationship",async()=>{await api("edge",item);row.remove();await loadGraph();}));
+      target.append(row);
+    }
+    status(found.length+" relationships suggested.");
+  });
+  await Promise.all([loadDocs(),loadCards(),loadHistory(),loadGraph(),loadExams()]);
 }
 async function importFiles(files){
-  const usable=files.filter(file=>/\.(pdf|pptx|docx|txt|md|csv|ipynb)$/i.test(file.name));
+  const usable=files.filter(file=>/\.(pdf|pptx|docx|txt|md|csv|ipynb|jpe?g|png|tiff?|heic)$/i.test(file.name));
   if(!usable.length) throw Error("Choose supported files to import.");
   const metadata=Object.fromEntries(new FormData($("doc-import")));
   let imported=0,duplicates=0; const errors=[];
@@ -207,6 +225,7 @@ async function loadDocs(){
   docs=await api("documents");
   selectList("subject",[...new Set(docs.map(x=>x.subject).filter(Boolean))].sort().map(x=>[x,x]),"All subjects");
   selectList("document",docs.map(x=>[x.id,x.name]),"All documents");
+  selectList("edge-doc",docs.map(x=>[x.id,x.name]),"Choose a document");
   renderDocs();updateStats();
 }
 function updateStats(){
@@ -259,4 +278,11 @@ function renderGraph(){
   const list=$("edge-list");list.replaceChildren();
   for(const item of items) list.append(node("p",null,node("span",item.source+" → "+item.relation+" → "+item.target+" "),
     button("Remove",async()=>{if(confirm("Remove this relationship?")){await api("delete-edge",{id:item.id});await loadGraph();}})));
+}
+
+async function loadExams(){
+  const list=$("exam-list");list.replaceChildren();
+  for(const item of await api("exams")) list.append(node("p",null,node("span",item.subject+" · "+item.exam_date+" "),
+    button("Remove exam",async()=>{if(confirm("Remove "+item.subject+"?")){await api("delete-exam",{id:item.id});await loadExams();}})));
+  if(!list.children.length)empty(list,"No exams planned.");
 }

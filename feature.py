@@ -5,6 +5,7 @@ from datetime import date, timedelta
 from pathlib import Path
 from core import DATA, db, rows, rank, chat
 from documents import extract, chunks
+from study_extra import IMAGES, extract_relationships, exam_action, recognize
 
 PORT = 8501
 
@@ -20,6 +21,7 @@ def initialize():
         CREATE TABLE IF NOT EXISTS history(id INTEGER PRIMARY KEY, question TEXT, answer TEXT, created TEXT DEFAULT CURRENT_TIMESTAMP);
         CREATE TABLE IF NOT EXISTS cards(id INTEGER PRIMARY KEY, subject TEXT, question TEXT, answer TEXT,
           due TEXT, interval_days INTEGER DEFAULT 0, reviews INTEGER DEFAULT 0);
+        CREATE TABLE IF NOT EXISTS exams(id INTEGER PRIMARY KEY, subject TEXT, exam_date TEXT, priority INTEGER);
         CREATE TABLE IF NOT EXISTS edges(id INTEGER PRIMARY KEY, source TEXT, target TEXT, relation TEXT,
           UNIQUE(source,target,relation));
         """)
@@ -51,11 +53,20 @@ def handle(action, p, post):
     if not post:
         with db() as con:
             return {
+                "exams": lambda: rows(con, "SELECT * FROM exams ORDER BY exam_date,id"),
                 "documents": lambda: rows(con, "SELECT id,name,subject,topic,semester,tags FROM docs ORDER BY id DESC"),
                 "cards": lambda: rows(con, "SELECT * FROM cards ORDER BY due,id"),
                 "graph": lambda: rows(con, "SELECT * FROM edges ORDER BY source,target"),
                 "history": lambda: rows(con, "SELECT * FROM history ORDER BY id DESC LIMIT 60"),
             }[action]()
+    if action in {"exam", "delete-exam", "schedule"}:
+        return exam_action(action, p)
+    if action == "suggest-edges":
+        with db() as con:
+            parts = rows(con,"SELECT text FROM passages WHERE doc=? ORDER BY id LIMIT 12",(int(p["doc"]),))
+        if not parts:
+            raise ValueError("Select a document containing indexed text.")
+        return extract_relationships("\n".join(row["text"] for row in parts),p.get("model"))
     if action == "ask":
         return ask(p)
     if action == "search":
@@ -66,13 +77,27 @@ def handle(action, p, post):
         digest = hashlib.sha256(raw).hexdigest()
         with db() as con:
             existing = con.execute("SELECT id FROM docs WHERE digest=?", (digest,)).fetchone()
-            if existing:
+            retry_ocr = bool(existing and p.get("ocr") and not con.execute(
+                "SELECT 1 FROM passages WHERE doc=? LIMIT 1", (existing[0],)).fetchone())
+            if existing and not retry_ocr:
                 return {"id": existing[0], "duplicate": True}
-            sections = list(chunks(extract(name, raw)))
-            cursor = con.execute("INSERT INTO docs(name,subject,topic,semester,tags,digest) VALUES(?,?,?,?,?,?)",
+            suffix = Path(name).suffix.lower()
+            if suffix in IMAGES:
+                parsed = [("image OCR", recognize(raw,suffix,[0])[0])]
+            else:
+                parsed = extract(name, raw)
+                missing = [i for i,(_,value) in enumerate(parsed,1) if not value.strip()]
+                if suffix == ".pdf" and missing and p.get("ocr"):
+                    found = recognize(raw,suffix,missing)
+                    parsed = [(label, text if text.strip() else found.get(i,"")) for i,(label,text) in enumerate(parsed,1)]
+            sections = list(chunks(parsed))
+            if retry_ocr:
+                doc = existing[0]
+            else:
+                cursor = con.execute("INSERT INTO docs(name,subject,topic,semester,tags,digest) VALUES(?,?,?,?,?,?)",
                                  (name, p.get("subject", ""), p.get("topic", ""), p.get("semester", ""),
                                   p.get("tags", ""), digest))
-            doc = cursor.lastrowid
+                doc = cursor.lastrowid
             con.executemany("INSERT INTO passages(doc,section,text) VALUES(?,?,?)",
                             [(doc, section, text) for section, text in sections])
             (DATA / "originals" / digest).write_bytes(raw)

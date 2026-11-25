@@ -3,12 +3,12 @@
 <title>CORTEX</title><link rel="stylesheet" href="/style.css"><script src="/ui.js" defer></script></head>
 <body class="cortex"><header><button id="sidebar" aria-label="Toggle navigation">Menu</button>
 <span class="brand">CORTEX</span><span class="spacer"></span><button id="health">Checking Ollama</button>
-<button id="theme">Theme</button></header><div class="shell"><nav aria-label="Workspaces"><button type="button" data-pane="library" aria-current="true">Library</button><button type="button" data-pane="assistant" aria-current="false">Knowledge assistant</button><button type="button" data-pane="study" aria-current="false">Study and revision</button><button type="button" data-pane="relationships" aria-current="false">Knowledge graph</button></nav>
+<button id="theme">Theme</button></header><div class="shell"><nav aria-label="Workspaces"><button type="button" data-pane="library" aria-current="true">Library</button><button type="button" data-pane="assistant" aria-current="false">Knowledge assistant</button><button type="button" data-pane="study" aria-current="false">Study and revision</button><button type="button" data-pane="relationships" aria-current="false">Knowledge graph</button><button type="button" data-pane="exam-plan" aria-current="false">Exam plan</button></nav>
 <main><div id="status" role="status" aria-live="polite"></div><section id="library"><h1>Your knowledge library</h1><p>Find course material and preview the exact passages indexed for search.</p>
 <div id="c-metrics" class="metrics"></div><div class="grid"><div class="panel drop" id="drop"><h2>Import documents</h2>
 <form id="doc-import"><div class="form-grid"><label>Subject<input name="subject"></label><label>Topic<input name="topic"></label><label>Semester<input name="semester"></label><label>Tags<input name="tags"></label></div>
-<label>Files<input id="docs" type="file" multiple accept=".pdf,.pptx,.docx,.txt,.md,.csv,.ipynb"></label><label>Or select a folder<input id="folder" type="file" webkitdirectory multiple></label>
-<button class="primary">Import selected files</button></form></div><div class="panel"><h2>Document preview</h2><div id="preview"><p>Select a document to preview it.</p></div></div></div>
+<label>Files<input id="docs" type="file" multiple accept=".pdf,.pptx,.docx,.txt,.md,.csv,.ipynb,.jpg,.jpeg,.png,.tif,.tiff,.heic"></label><label>Or select a folder<input id="folder" type="file" webkitdirectory multiple></label>
+<label class="check"><input type="checkbox" name="ocr"> Extract text from scanned PDF pages (macOS, up to 20 pages per import)</label><button class="primary">Import selected files</button></form></div><div class="panel"><h2>Document preview</h2><div id="preview"><p>Select a document to preview it.</p></div></div></div>
 <div class="panel"><label>Filter documents<input id="find-doc" type="search" placeholder="Filename, topic, subject, tags"></label><div id="doc-list"></div></div></section>
 <section id="assistant" hidden><h1>Knowledge assistant</h1><p>Search passages directly or ask a local model to answer with source references.</p>
 <div class="panel"><form id="c-query"><label>Question or terms<input name="query" type="search" required></label>
@@ -22,6 +22,14 @@
 <div class="grid"><div class="panel"><h2>Add a flashcard</h2><form id="new-card"><label>Subject<input name="subject"></label><label>Question<input name="question" required></label><label>Answer<textarea name="answer" required></textarea></label><button class="primary">Save flashcard</button></form></div>
 <div class="panel"><h2>Review queue</h2><div id="cards"></div></div></div></section>
 <section id="relationships" hidden><h1>Knowledge graph</h1><p>Record and explore links between concepts across your subjects.</p>
+<div class="panel"><h2>Extract relationships from a document</h2><form id="suggest-edges">
+<label>Source document<select id="edge-doc" name="doc" required></select></label><button class="primary">Suggest relationships</button>
+</form><div id="edge-suggestions"></div></div>
 <div class="panel"><form id="edge"><div class="form-grid"><label>Concept<input name="source" required></label><label>Relationship<input name="relation" required></label><label>Related concept<input name="target" required></label></div><button class="primary">Add relationship</button></form></div>
 <div class="panel"><label>Filter relationships<input type="search" id="graph-filter"></label><div id="graph" class="graph"></div><div id="edge-list"></div></div></section>
+<section id="exam-plan" hidden><h1>Exam plan</h1><p>Build a daily revision plan from your exam dates and time budget.</p>
+<div class="grid"><div class="panel"><h2>Add an exam</h2><form id="exam-form"><label>Subject<input name="subject" required></label>
+<label>Exam date<input type="date" name="exam_date" required></label><label>Priority<select name="priority"><option value="2">Normal</option><option value="3">High</option><option value="1">Low</option></select></label>
+<button class="primary">Save exam</button></form><div id="exam-list"></div></div>
+<div class="panel"><h2>Study schedule</h2><form id="schedule-form"><label>Minutes available each day<input type="number" min="15" max="480" value="90" name="minutes" required></label><button class="primary">Build schedule</button></form><div id="schedule-list" class="timeline"></div></div></div></section>
 </main></div></body></html>
