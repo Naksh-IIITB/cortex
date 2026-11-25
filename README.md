@@ -20,7 +20,7 @@ Run \`python3 test_workflows.py\` for the workflow test.
 
 ## Scope
 
-macOS Vision handles image OCR and up to 20 scanned PDF pages per import. Review AI-suggested relationships before saving. The exam planner distributes your daily study time over scheduled exams.
+On-device OCR handles images and up to 20 scanned PDF pages per import. Review AI-suggested relationships before saving. The exam planner distributes your daily study time over scheduled exams.
 The semantic search reranks up to 120 keyword-ranked candidates. AI output can be incomplete
 and should be checked against the displayed evidence.
 
@@ -37,5 +37,5 @@ want to keep, and remove the project folder. The public landing page contains pr
 ## OCR and study planning
 
 Image uploads trigger Apple Vision OCR. Select the OCR checkbox to recognize scanned PDF pages.
-OCR uses the macOS Command Line Tools and runs locally. If Vision cannot recognize a file, install Tesseract (for example, with Homebrew) to enable the fallback.
+OCR uses the macOS Command Line Tools and runs locally. CORTEX installs RapidOCR as the fallback for Apple Vision. Tesseract is also used when available.
 For graph extraction, select an indexed document and review each relationship before saving.

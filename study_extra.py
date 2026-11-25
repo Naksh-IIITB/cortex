@@ -4,10 +4,38 @@ import shutil
 import subprocess
 import tempfile
 from datetime import date, timedelta
+from functools import lru_cache
 from pathlib import Path
 from core import APP, DATA, chat, db, rows
 
 IMAGES = {".jpg", ".jpeg", ".png", ".tif", ".tiff", ".heic"}
+
+
+@lru_cache(maxsize=1)
+def rapid_reader():
+    from rapidocr_onnxruntime import RapidOCR
+    return RapidOCR()
+
+
+def recognize_fallback(binary_args, source, output, page):
+    tesseract = shutil.which("tesseract")
+    try:
+        reader = rapid_reader()
+    except (ImportError, OSError, RuntimeError):
+        reader = None
+    if reader is None and not tesseract:
+        raise ValueError("Apple Vision could not process this file. Install the CORTEX OCR dependencies or Tesseract.")
+    pixels = output if page else source
+    if page:
+        subprocess.run(binary_args + [str(pixels)], check=True, timeout=35, capture_output=True)
+    if reader is not None:
+        recognized, _ = reader(str(pixels))
+        if recognized:
+            return "\n".join(row[1] for row in recognized)
+    if tesseract:
+        return subprocess.run([tesseract,str(pixels),"stdout"],check=True,timeout=35,
+                              capture_output=True,text=True).stdout.strip()
+    return ""
 
 
 def recognize(content, suffix, pages):
@@ -33,18 +61,11 @@ def recognize(content, suffix, pages):
             args = [str(binary), str(path)] + ([str(page)] if page else [])
             try:
                 result[page] = subprocess.run(args, check=True, timeout=35, capture_output=True, text=True).stdout.strip()
-            except subprocess.SubprocessError as error:
-                tesseract = shutil.which("tesseract")
-                if not tesseract:
-                    raise ValueError("Apple Vision could not process this file. Install Tesseract to enable the fallback.") from error
-                pixels = folder / "page.png" if page else path
+            except subprocess.SubprocessError:
                 try:
-                    if page:
-                        subprocess.run(args + [str(pixels)], check=True, timeout=35, capture_output=True)
-                    result[page] = subprocess.run([tesseract,str(pixels),"stdout"], check=True,timeout=35,
-                                                  capture_output=True,text=True).stdout.strip()
-                except subprocess.SubprocessError as fallback:
-                    raise ValueError("OCR could not process this file.") from fallback
+                    result[page] = recognize_fallback(args, path, folder / "page.png", page)
+                except (subprocess.SubprocessError, RuntimeError) as error:
+                    raise ValueError("OCR could not process this file.") from error
         return result
 
 
